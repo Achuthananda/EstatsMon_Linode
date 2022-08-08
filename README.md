@@ -2,7 +2,7 @@
 One of the common challenges for Akamai Customers is to monitor the traffic of their websites in real time. Datastream is Akamai's real time data export offering to the favorite destinations of customers. If the customer is not really in the need of real time logs and are okay with a delay of 2 mins, then eStats data would be a good consumption. This estats endpoint returns HTTP status codes distribution statistics from delivering a URL or CP code based on the nine-second traffic sample from the last two minutes.
 Feel free to go through the [API endpoint](https://techdocs.akamai.com/edge-diagnostics/reference/post-estats).
 
-- This POC is aimed at how to quickly setup [Grafana](https://grafana.com/) Dashboards for monitoring HTTP Status Code Distribution
+- This POC is aimed at how to quickly setup [Grafana](https://grafana.com/) Dashboards for monitoring HTTP Status Code Distribution on Linode VMs.
 
 ### Proposed Workflow
 ![Screenshot](images/arch.jpg)
@@ -17,9 +17,56 @@ access_token = akab-zyx987asdasxa6osbli4k-e7jf5ikib5jknes3
 Client_token = akab-nomadoflavjuc4422-fa2xznerxrm3teg7
 ```
 
-- Installation of Docker Desktop : Promethes and Grafana will be run on docker containers. So to run the docker images, you need to install the Docker Desktop. Steps can be found [here](https://www.docker.com/products/docker-desktop/)
+- Create an account by signing up with [Linode](https://cloud.linode.com/). You can read on getting started [here](https://www.linode.com/docs/guides/getting-started/)
 
-- Python3 [Installation](https://www.python.org/downloads/) 
+
+### Create a Grafana and Prometheus Linode Instance
+- Create Linode Instance by selecting Grafana and Prometheus Market Place at https://cloud.linode.com/ ![Screenshot](images/LinodeCreation1.jpg)
+
+- Fill in other details
+![Screenshot](images/LinodeCreation2.jpg)
+![Screenshot](images/LinodeCreation3.jpg)
+
+### Login to the Linode Instance
+- Details about the IP Address, Hostname of the instance can be found here
+![Screenshot](images/LinodeLogin1.jpg)
+
+- I am logging in via SSH to the instance
+![Screenshot](images/LinodeLogin2.jpg)
+
+### Prometheus and Grafana Credentials
+The marketplace comes with the Prometheus and Grafana preinstalled and the creds can be found at ~/credentials.txt 
+```
+root@172-105-316-237:~# cat credentials.txt 
+#################
+#   Prometheus  #
+#################
+Location: https://172-105-316-237.ip.linodeusercontent.com/prometheus
+Username: prometheus
+Password: 8a+49O/N/6EasdasdvXb/YQidIjAVozuTCSDZIjGZEPJxJUsE=
+##############
+#  Grafana   #
+##############
+Location: https://172-105-316-237.ip.linodeusercontent.com/
+Username: admin
+Password: EAhQrzu1xRasdasdw1lxIpmmjmigkpREhcwl/vXx58j7rwP4U=
+root@172-105-36-237:~# 
+```
+
+### Setup the Edgerc file.
+Create an edgerc with the creds created from Akamai Control Center at ~/.edgerc
+
+### Clone the Exporter Code.
+```
+root@172-105-36-237:~# git clone https://github.com/Achuthananda/EstatsMon_Linode.git
+Cloning into 'EstatsMon_Linode'...
+remote: Enumerating objects: 16, done.
+remote: Counting objects: 100% (16/16), done.
+remote: Compressing objects: 100% (13/13), done.
+remote: Total 16 (delta 2), reused 16 (delta 2), pack-reused 0
+Unpacking objects: 100% (16/16), 738.73 KiB | 735.00 KiB/s, done.
+root@172-105-36-237:~# 
+```
 
 ### Configure the Exporter
 ```
@@ -28,7 +75,7 @@ polling_interval = 120
 exporter_port = 9877
 
 [Akamai]
-edgerclocation = /Users/apadmana/.edgerc
+edgerclocation = ~/.edgerc
 cpcode = 1209788
 deliverynetwork = STANDARD_TLS
 accountSwitchKey = B-C-1IE2OH8:1-2RBL
@@ -36,64 +83,49 @@ accountSwitchKey = B-C-1IE2OH8:1-2RBL
 If you are an Akamai customer then you can leave accountSwitchKey as blank. Rest everything needs to be filled up as per your need.
 polling_interval denotes the frequency of pulling the data from Akamai estats.
 
-### Install the dependencies
+### Setup the Prometheus Config
 ```
-[~/GrafanaPOC]$:pip install -r requirements.txt
+root@172-105-36-237:~/EstatsMon_Linode# cp prometheus.yml /etc/prometheus/prometheus.yml
+root@172-105-36-237:~/EstatsMon_Linode# sudo systemctl restart prometheus
 ```
 
+### Setup the Exporter
+```
+root@172-105-36-237:~/EstatsMon_Linode# apt install python3-pip
+root@172-105-36-237:~/EstatsMon_Linode# pip3 install -r requirements.txt
+root@172-105-36-237:~/EstatsMon_Linode# sudo ufw allow 9877
+```
 
 ### Run the Exporter
 ```
-[~/GrafanaPOC]$:python exporter.py 
+root@172-105-36-237:~/EstatsMon_Linode#python exporter.py 
 HTTP Exporter Server is Running on Port 9877
 ```
 
 ### Configure and Run the Prometheus Server
-An official docker image of Prometheus is pulled and a prometheus server will be running on port 9090. Prometheus.yml contains the exporter details.
-```
-[~/GrafanaPOC]$:docker run -d --name prometheus -p 9090:9090 -v /Users/apadmana/GrafanaPOC/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus --config.file=/etc/prometheus/prometheus.yml
-cb3b6489e62f7ac5b35c6128b37bcdcbc0a1880d09e14810c9cf47e89677b875
-[~/GrafanaPOC]$
-```
 
-- You can confirm the same by clicking on http://localhost:9090/config
-![Screenshot](images/promconfig.png)
+- Check the Config Settings of Prometheus Server on https://172-105-316-237.ip.linodeusercontent.com/prometheus/config
+![Screenshot](images/PromConfigCheck.jpg)
 
-- You can also check if the exporter is working fine by a health check of the target at http://localhost:9090/targets
-![Screenshot](images/promtargets.png)
+- You can also check if the exporter is working fine by a health check of the target at https://172-105-316-237.ip.linodeusercontent.com/prometheus/targets
+![Screenshot](images/PromStatusCheck.jpg)
 
 
-### Configure and Run the Grafana Server
-An official docker image of Grafana is pulled and a grafana server will be running on port 3000. 
-```
-[~/GrafanaPOC]$:docker run -d --name grafana -p 3000:3000 grafana/grafana
-ec7cd6b921d8fe4e794ce18492c4f80caa54c62a114f66d744ab1b204cd62e4a
-[~/GrafanaPOC]$
-```
+### Grafana 
+- Login to Grafana at https://172-105-36-237.ip.linodeusercontent.com/
+![Screenshot](images/GrafanaLogin.jpg)
 
-- Login to Grafana at http://localhost:3000/config
-![Screenshot](images/grafanalogin.png)
-
-- Homepage
-![Screenshot](images/grafanahome.png)
-
-- Click on Add your first data source or http://localhost:3000/datasources
-![Screenshot](images/grafanadatasource.png)
-
-- Add data source
-![Screenshot](images/grafanaadddatasource.png)
-
-- Configuring Prometheus datasource in Grafana and Copy the datasource Id from the url FqlJ4PzVz
-![Screenshot](images/grafanaprometheus.png)
+- Click on Add your first data source [Prometheus datasource] or https://172-105-36-237.ip.linodeusercontent.com/datasources and Copy the datasource Id from the url 3WzerRm4z
+![Screenshot](images/DatasourceAdd.jpg)
 
 - Update the Dashboard json with the Datasource Id
 ```
-[~/GrafanaPOC]$:python updatedashboardid.py -d FqlJ4PzVz
-[~/GrafanaPOC]$:
+[~/]$:python updatedashboardid.py -d 3WzerRm4z
+[~/]$:
 ```
 
-- Import dashboard at http://localhost:3000/dashboard/import
-![Screenshot](images/grafanaimport.png)
+- Import dashboard at https://172-105-36-237.ip.linodeusercontent.com/dashboard/import
+![Screenshot](images/Importjson.jpg)
 
 - Grafana Visualization will be ready in no time
-![Screenshot](images/grafanadashboard.png)
+![Screenshot](images/GrafanaDashboard.jpg)

@@ -3,7 +3,7 @@ polling_interval = 120
 exporter_port = 9877
 
 [Akamai]
-edgerclocation = /Users/apadmana/.edgerc
+edgerclocation = ~/.edgerc
 cpcode = 1209788
 deliverynetwork = STANDARD_TLS
 accountSwitchKey = B-C-1IE2OH8:1-2RBL
