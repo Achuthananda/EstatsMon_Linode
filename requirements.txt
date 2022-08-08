@@ -1,0 +1,4 @@
+akamaihttp==1.6.4
+edgegrid_python==1.2.1
+prometheus_client==0.14.1
+requests==2.28.0
